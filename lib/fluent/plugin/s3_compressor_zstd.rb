@@ -19,18 +19,8 @@ module Fluent::Plugin
       end
 
       def compress(chunk, tmp)
-        w = StringIO.new
-        chunk.write_to(w)
-        w.rewind
-        
-        # zstd 압축 수행
-        compressed = Zstd.compress(w.read, level: @compress_config.level)
-        
-        # 압축된 데이터를 임시 파일에 쓰기
-        tmp.binmode
-        tmp.rewind
+        compressed = Zstd.compress(chunk.read, level: @compress_config.level)
         tmp.write(compressed)
-        tmp.rewind  # 파일 포인터를 처음으로 되돌리기
       rescue => e
         log.warn "zstd compression failed: #{e.message}"
         raise
