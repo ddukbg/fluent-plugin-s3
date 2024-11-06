@@ -20,8 +20,9 @@ module Fluent::Plugin
 
       def compress(chunk, tmp)
         chunk.write_to(tmp) do |chunk_io|
-          compressor = Zstd::Compressor.new(level: @compress_config.level)
-          compressed = compressor.compress(chunk_io.read)
+          data = chunk_io.read
+          compressed = Zstd.compress(data, level: @compress_config.level)
+          tmp.binmode
           tmp.write(compressed)
         end
       rescue => e
