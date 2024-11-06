@@ -1,7 +1,7 @@
 name: linux
 on:
   push:
-    branches: [master]
+    branches: [master, feature/*]
   pull_request:
     branches: [master]
 jobs:
