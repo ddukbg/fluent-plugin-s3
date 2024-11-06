@@ -481,6 +481,11 @@ EOC
   
     config = CONFIG_TIME_SLICE + "\nstore_as zstd\n"
     d = create_time_sliced_driver(config)
+    
+    # Get compressor instance for debugging
+    compressor = d.instance.instance_variable_get(:@compressor)
+    puts "Compressor class: #{compressor.class}"
+    puts "Compressor config: #{compressor.instance_variable_get(:@compress_config).inspect}"
   
     time = event_time("2011-01-02 13:14:15 UTC")
     d.run(default_tag: "test") do
@@ -488,21 +493,26 @@ EOC
       d.feed(time, { "a" => 2 })
     end
   
-    File.open(s3_local_file_path, 'rb') do |file|
-      compressed_data = file.read
-      puts "Compressed data size: #{compressed_data.bytesize}"
-      puts "First few bytes: #{compressed_data[0..10].bytes.map { |b| sprintf('%02x', b) }.join(' ')}"
-      
-      begin
-        uncompressed_data = Zstd.decompress(compressed_data)
-        expected_data = %[2011-01-02T13:14:15Z\ttest\t{"a":1}\n] +
-                       %[2011-01-02T13:14:15Z\ttest\t{"a":2}\n]
-        assert_equal expected_data, uncompressed_data
-      rescue => e
-        puts "Decompression error: #{e.message}"
-        puts "File exists?: #{File.exist?(s3_local_file_path)}"
-        puts "File permissions: #{File.stat(s3_local_file_path).mode.to_s(8)}"
-        raise
+    puts "Checking file: #{s3_local_file_path}"
+    puts "File exists?: #{File.exist?(s3_local_file_path)}"
+    if File.exist?(s3_local_file_path)
+      puts "File size: #{File.size(s3_local_file_path)}"
+      File.open(s3_local_file_path, 'rb') do |file|
+        compressed_data = file.read
+        puts "Read data size: #{compressed_data.bytesize}"
+        puts "First few bytes: #{compressed_data[0..10].bytes.map { |b| sprintf('%02x', b) }.join(' ')}"
+        
+        begin
+          uncompressed_data = Zstd.decompress(compressed_data)
+          puts "Successfully decompressed data: #{uncompressed_data[0..50]}"
+          expected_data = %[2011-01-02T13:14:15Z\ttest\t{"a":1}\n] +
+                         %[2011-01-02T13:14:15Z\ttest\t{"a":2}\n]
+          assert_equal expected_data, uncompressed_data
+        rescue => e
+          puts "Decompression error: #{e.class} - #{e.message}"
+          puts "Backtrace:\n#{e.backtrace.join("\n")}"
+          raise
+        end
       end
     end
     FileUtils.rm_f(s3_local_file_path)

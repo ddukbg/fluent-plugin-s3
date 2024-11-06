@@ -19,15 +19,27 @@ module Fluent::Plugin
       end
 
       def compress(chunk, tmp)
-        chunk.write_to(tmp) do |chunk_io|
-          data = chunk_io.read
-          compressed = Zstd.compress(data, level: @compress_config.level)
-          tmp.binmode
-          tmp.write(compressed)
+        begin
+          log.debug "Starting ZSTD compression"
+          chunk.write_to(tmp) do |chunk_io|
+            data = chunk_io.read
+            log.debug "Read data size: #{data.bytesize}"
+            
+            compressed = Zstd.compress(data, level: @compress_config.level)
+            log.debug "Compressed data size: #{compressed.bytesize}"
+            log.debug "First few bytes of compressed data: #{compressed[0..10].bytes.map { |b| sprintf('%02x', b) }.join(' ')}"
+            
+            tmp.rewind
+            tmp.binmode
+            tmp.write(compressed)
+            tmp.flush
+          end
+          log.debug "Finished ZSTD compression"
+        rescue => e
+          log.warn "ZSTD compression failed: #{e.message}"
+          log.warn e.backtrace.join("\n")
+          raise
         end
-      rescue => e
-        log.warn "zstd compression failed: #{e.message}"
-        raise
       end
     end
   end
