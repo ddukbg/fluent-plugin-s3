@@ -474,7 +474,11 @@ EOC
 
     expected_s3path = "log/events/ts=20110102-13/events_0-#{Socket.gethostname}.zst"
 
-    setup_s3_object_mocks(s3_local_file_path: s3_local_file_path, s3path: expected_s3path)
+    setup_s3_object_mocks(
+      s3_local_file_path: s3_local_file_path,
+      s3path: expected_s3path,
+      content_type: "application/x-zst"
+    )
 
     config = CONFIG_TIME_SLICE + "\nstore_as zstd\n"
     d = create_time_sliced_driver(config)
